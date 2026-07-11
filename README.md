@@ -30,15 +30,21 @@ page.
 
 ## Configuration
 
-Global settings are read from command-line flags or environment variables. A
-local `.env` file is loaded automatically if present.
+Settings come from subcommand flags or environment variables. A local `.env`
+file is loaded automatically if present. All flags are subcommand-local, so they
+go after the subcommand name.
 
-| Global flag       | Environment variable | Required | Description                                        |
+Credentials are flags of the authenticating subcommands (`blog list` and
+`blog get`); they can also come from the environment:
+
+| Flag              | Environment variable | Required | Description                                        |
 |-------------------|----------------------|----------|----------------------------------------------------|
-| `--login`         | `SCRAPENT_LOGIN`       | yes      | ENT account login                                  |
-| `--password`      | `SCRAPENT_PASSWORD`    | yes      | ENT account password                               |
-| `--domain`        | `SCRAPENT_DOMAIN`      | yes      | ENT domain, e.g. `ent-ecoles.ac-xxxxxxxxxx.fr`     |
-| `--output`, `-o`  | `SCRAPENT_OUTPUT`      | no       | output directory (default `dist`)                  |
+| `--login`         | `SCRAPENT_LOGIN`     | yes      | ENT account login                                  |
+| `--password`      | `SCRAPENT_PASSWORD`  | yes      | ENT account password                               |
+| `--domain`        | `SCRAPENT_DOMAIN`    | yes      | ENT domain, e.g. `ent-ecoles.ac-xxxxxxxxxx.fr`     |
+
+`blog get` and `blog generate` also take `--blog-dir` (`-d`, `SCRAPENT_BLOG_DIR`,
+default `dist`) for the directory blogs are stored in and read from.
 
 Example `.env`:
 
@@ -46,12 +52,10 @@ Example `.env`:
 SCRAPENT_LOGIN="jane.doe"
 SCRAPENT_PASSWORD="s3cret"
 SCRAPENT_DOMAIN="ent-ecoles.ac-xxxxxxxxxx.fr"
-SCRAPENT_OUTPUT="dist"
+SCRAPENT_BLOG_DIR="dist"
 ```
 
 ## Usage
-
-Global flags come before the subcommand.
 
 ### List available blogs
 
@@ -95,10 +99,10 @@ Rebuild article and merged PDFs from an already-downloaded data directory,
 without authentication or network access:
 
 ```bash
-./bin/scrapent -o dist blog generate            # every blog under dist/
-./bin/scrapent -o dist blog generate \
+./bin/scrapent blog generate -d dist            # every blog under dist/
+./bin/scrapent blog generate -d dist \
   --name class-a --name class-b                  # only these blog directories
-./bin/scrapent -o dist blog generate --force     # rebuild even existing PDFs
+./bin/scrapent blog generate -d dist --force     # rebuild even existing PDFs
 ```
 
 It reads each `content.json` (and the images next to it), regenerates any
@@ -112,8 +116,8 @@ structured `jsonContent`. `migrate` converts one such file to the current
 format (RFC3339 dates, HTML parsed into text and `custom-image` nodes):
 
 ```bash
-./bin/scrapent migrate path/to/content.json        # print converted JSON
-./bin/scrapent migrate -i path/to/content.json      # rewrite the file in place
+./bin/scrapent blog migrate path/to/content.json        # print converted JSON
+./bin/scrapent blog migrate -i path/to/content.json      # rewrite the file in place
 ```
 
 No authentication is required. Combine with `blog generate` to rebuild PDFs

@@ -24,30 +24,6 @@ func main() {
 		Name:    version.ProgName,
 		Usage:   "Archive blog posts and images from an ENT (entcore) space",
 		Version: version.Version,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "login",
-				Usage:   "ENT account login",
-				Sources: cli.EnvVars("SCRAPENT_LOGIN"),
-			},
-			&cli.StringFlag{
-				Name:    "password",
-				Usage:   "ENT account password",
-				Sources: cli.EnvVars("SCRAPENT_PASSWORD"),
-			},
-			&cli.StringFlag{
-				Name:    "domain",
-				Usage:   "ENT domain, e.g. ent-ecoles.ac-xxxxxxxxx.fr",
-				Sources: cli.EnvVars("SCRAPENT_DOMAIN"),
-			},
-			&cli.StringFlag{
-				Name:    "output",
-				Aliases: []string{"o"},
-				Usage:   "output directory",
-				Value:   "dist",
-				Sources: cli.EnvVars("SCRAPENT_OUTPUT"),
-			},
-		},
 		Commands: []*cli.Command{
 			{
 				Name:  "blog",
@@ -56,67 +32,101 @@ func main() {
 					{
 						Name:  "list",
 						Usage: "list available blogs",
-						Flags: []cli.Flag{
-							&cli.StringFlag{
-								Name:    "format",
-								Aliases: []string{"f"},
-								Usage:   "output format: terminal or json",
-								Value:   "terminal",
-							},
-						},
+						Flags: append(authFlags(), &cli.StringFlag{
+							Name:    "format",
+							Aliases: []string{"f"},
+							Usage:   "output format: terminal or json",
+							Value:   "terminal",
+						}),
 						Action: blogList(logger),
 					},
 					{
 						Name:  "get",
 						Usage: "download one or more blogs",
-						Flags: []cli.Flag{
+						Flags: append(authFlags(),
 							&cli.StringSliceFlag{
 								Name:     "id",
 								Usage:    "blog to download as name:id (repeatable); a bare id is used as its own name",
 								Required: true,
+								Sources:  cli.EnvVars("SCRAPENT_BLOG_IDS"),
 							},
+							blogDirFlag(),
 							&cli.BoolFlag{Name: "force-articles", Usage: "re-download article content even if present"},
 							&cli.BoolFlag{Name: "skip-articles", Usage: "never download article content"},
 							&cli.BoolFlag{Name: "force-images", Usage: "re-download images even if present"},
 							&cli.BoolFlag{Name: "skip-images", Usage: "never download images"},
 							&cli.BoolFlag{Name: "force-pdf", Usage: "regenerate PDFs even if present"},
 							&cli.BoolFlag{Name: "skip-pdf", Usage: "never generate or merge PDFs"},
-						},
+						),
 						Action: blogGet(logger),
 					},
 					{
 						Name:  "generate",
 						Usage: "regenerate PDFs from a local data directory (no authentication)",
 						Flags: []cli.Flag{
+							blogDirFlag(),
 							&cli.StringSliceFlag{
 								Name:  "name",
-								Usage: "only regenerate these blog directory names (default: all under --output)",
+								Usage: "only regenerate these blog directory names (default: all under --blog-dir)",
 							},
 							&cli.BoolFlag{Name: "force", Usage: "regenerate article PDFs even if present"},
 							&cli.BoolFlag{Name: "legacy", Usage: "convert legacy content.json files on the fly"},
 						},
 						Action: blogGenerate(logger),
 					},
-				},
-			},
-			{
-				Name:      "migrate",
-				Usage:     "convert a legacy content.json to the current format",
-				ArgsUsage: "<content.json>",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{
-						Name:    "in-place",
-						Aliases: []string{"i"},
-						Usage:   "rewrite the file in place instead of printing to stdout",
+					{
+						Name:      "migrate",
+						Usage:     "convert a legacy content.json to the current format",
+						ArgsUsage: "<content.json>",
+						Flags: []cli.Flag{
+							&cli.BoolFlag{
+								Name:    "in-place",
+								Aliases: []string{"i"},
+								Usage:   "rewrite the file in place instead of printing to stdout",
+							},
+						},
+						Action: migrate,
 					},
 				},
-				Action: migrate,
 			},
 		},
 	}
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		logger.Fatal(err)
+	}
+}
+
+// authFlags are the ENT credentials, shared by the commands that need to
+// authenticate (blog list and blog get).
+func authFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    "login",
+			Usage:   "ENT account login",
+			Sources: cli.EnvVars("SCRAPENT_LOGIN"),
+		},
+		&cli.StringFlag{
+			Name:    "password",
+			Usage:   "ENT account password",
+			Sources: cli.EnvVars("SCRAPENT_PASSWORD"),
+		},
+		&cli.StringFlag{
+			Name:    "domain",
+			Usage:   "ENT domain, e.g. ent-ecoles.ac-reims.fr",
+			Sources: cli.EnvVars("SCRAPENT_DOMAIN"),
+		},
+	}
+}
+
+// blogDirFlag is the per-command directory blogs are stored in and read from.
+func blogDirFlag() cli.Flag {
+	return &cli.StringFlag{
+		Name:    "blog-dir",
+		Aliases: []string{"d"},
+		Usage:   "directory to store and read blogs from",
+		Value:   "dist",
+		Sources: cli.EnvVars("SCRAPENT_BLOG_DIR"),
 	}
 }
 
@@ -130,7 +140,7 @@ func newClient(cmd *cli.Command, logger *log.Logger) (*scrapent.Client, error) {
 
 func blogGenerate(logger *log.Logger) cli.ActionFunc {
 	return func(_ context.Context, cmd *cli.Command) error {
-		return scrapent.GeneratePDFs(cmd.String("output"), cmd.StringSlice("name"), cmd.Bool("force"), cmd.Bool("legacy"), logger)
+		return scrapent.GeneratePDFs(cmd.String("blog-dir"), cmd.StringSlice("name"), cmd.Bool("force"), cmd.Bool("legacy"), logger)
 	}
 }
 
@@ -223,6 +233,6 @@ func blogGet(logger *log.Logger) cli.ActionFunc {
 			SkipPDF:       cmd.Bool("skip-pdf"),
 		}
 
-		return client.Scrape(blogs, cmd.String("output"), opts)
+		return client.Scrape(blogs, cmd.String("blog-dir"), opts)
 	}
 }
