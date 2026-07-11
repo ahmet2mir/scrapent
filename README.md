@@ -16,6 +16,7 @@ full-resolution images referenced in the post.
 - Resumable: an article that already has a `content.json` on disk is not
   fetched again, and an image or PDF already present is not regenerated.
 - Human-readable output tree named after the blog and each post's title.
+- Everything is done sequentially in order to preserve ENT servers, no parallel / goroutine
 
 ## Installation
 
