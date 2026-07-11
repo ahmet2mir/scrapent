@@ -9,38 +9,6 @@ permissions:
   contents: write
 
 jobs:
-  # quality:
-  #   name: Pre-release Quality Check
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v7
-  #       with:
-  #         fetch-depth: 0
-
-  #     - name: Set up Go
-  #       uses: actions/setup-go@v6
-  #       with:
-  #         go-version-file: go.mod
-  #         cache: true
-
-  #     - name: Install tools
-  #       run: make setup
-
-  #     - name: Format and tidy
-  #       run: |
-  #         make fmt tidy
-  #         git diff --exit-code
-
-  #     - name: Lint
-  #       run: make lint
-
-  #     - name: Security
-  #       run: make security
-
-  #     - name: Test
-  #       run: make test
-
   release:
     name: Release
     runs-on: ubuntu-latest

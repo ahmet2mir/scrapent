@@ -64,3 +64,7 @@ site/
 *.jpeg
 *.pdf
 *.json
+
+# created in CI
+.generated-go-semantic-release-changelog.md
+.semrel/
