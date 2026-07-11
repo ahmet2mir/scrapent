@@ -64,7 +64,6 @@ archives:
     files:
       - LICENSE
       - README.md
-      - README.fr.md
 
 checksum:
   name_template: 'checksums.txt'
@@ -125,3 +124,4 @@ release:
     ```bash
     sha256sum -c checksums.txt
     ```
+
