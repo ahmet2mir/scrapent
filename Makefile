@@ -11,6 +11,7 @@ setup:
 	@command -v golangci-lint 2>&1 > /dev/null || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@command -v gosec 2>&1 > /dev/null || go install github.com/securego/gosec/v2/cmd/gosec@latest
 	@command -v goreleaser 2>&1 > /dev/null || go install github.com/goreleaser/goreleaser@latest
+	@command -v betterleaks 2>&1 > /dev/null || go install github.com/betterleaks/betterleaks@latest
 
 fmt:
 	$(GO_CMD)fmt -w $(GOFMT_FILES)
@@ -29,6 +30,8 @@ clean:
 
 security:
 	gosec -exclude G115 -exclude-dir _local -quiet ./...
+	betterleaks dir --no-banner --follow-symlinks . -v
+	betterleaks git --no-banner . -v
 
 test:
 	go test -v -timeout 30s -coverprofile=cover.out -cover $(TEST)
