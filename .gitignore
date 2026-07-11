@@ -57,3 +57,10 @@ scrapent.log
 
 # MkDocs
 site/
+
+# in case of scrap not saved under dist and in the git repo, always skip images
+*.jpg
+*.png
+*.jpeg
+*.pdf
+*.json
