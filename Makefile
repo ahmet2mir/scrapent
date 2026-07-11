@@ -8,9 +8,9 @@ SHELL := /bin/bash
 all: clean tidy fmt lint security test build
 
 setup:
-	@command -v golangci-lint 2>&1 > /dev/null || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@command -v golangci-lint 2>&1 > /dev/null || go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	@command -v gosec 2>&1 > /dev/null || go install github.com/securego/gosec/v2/cmd/gosec@latest
-	@command -v goreleaser 2>&1 > /dev/null || go install github.com/goreleaser/goreleaser@latest
+	@command -v goreleaser 2>&1 > /dev/null || go install github.com/goreleaser/goreleaser/v2@latest
 	@command -v betterleaks 2>&1 > /dev/null || go install github.com/betterleaks/betterleaks@latest
 
 fmt:
