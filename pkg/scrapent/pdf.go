@@ -22,14 +22,9 @@ import (
 // buildArticlePDF renders the article PDF when it is missing, invalid or force
 // is set, and reports its path plus whether a valid PDF is now present.
 func buildArticlePDF(articleDir string, post *Post, force bool, logger *log.Logger) (string, bool) {
-	prefix := "unknown"
-	if !post.Created.Date.IsZero() {
-		prefix = post.Created.Date.Format("2006-01-02-15-04-05")
-	}
-
 	pdfPath := filepath.Join(articleDir, filepath.Base(articleDir)+".pdf")
 	if force || !validPDF(pdfPath) {
-		if err := renderPDF(post, articleDir, prefix, pdfPath); err != nil {
+		if err := renderPDF(post, articleDir, pdfPath); err != nil {
 			logger.Error("Generating PDF", "dir", articleDir, "err", err)
 		} else {
 			logger.Info("PDF generated", "path", pdfPath)
@@ -80,8 +75,11 @@ const (
 
 // renderPDF writes a document-style PDF of the post to dst. Text and layout come
 // from the structured jsonContent; images are embedded from the files already
-// downloaded next to the post under articleDir (named "<prefix>--<id>.jpg").
-func renderPDF(post *Post, articleDir, prefix, dst string) error {
+// downloaded next to the post under articleDir (named "<prefix>--<id>.jpg"),
+// resolved by their document id so the date prefix does not have to match.
+func renderPDF(post *Post, articleDir, dst string) error {
+	images := indexArticleImages(articleDir)
+
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(pageMargin, pageMargin, pageMargin)
 	pdf.SetAutoPageBreak(true, pageMargin)
@@ -131,7 +129,7 @@ func renderPDF(post *Post, articleDir, prefix, dst string) error {
 
 	// Body.
 	for _, node := range post.JSONContent.Content {
-		renderParagraph(pdf, tr, node, articleDir, prefix)
+		renderParagraph(pdf, tr, node, images)
 	}
 
 	// Write atomically so an interrupted run cannot leave an empty or partial
@@ -147,7 +145,7 @@ func renderPDF(post *Post, articleDir, prefix, dst string) error {
 // the PDF header. Empty or corrupt files (e.g. from an interrupted run) are
 // treated as invalid so they get regenerated instead of breaking the merge.
 func validPDF(path string) bool {
-	f, err := os.Open(path) // #nosec G304 -- path is program-built under outputDir
+	f, err := os.Open(path) // #nosec G304 G703 -- path is program-built under outputDir
 	if err != nil {
 		return false
 	}
@@ -158,9 +156,31 @@ func validPDF(path string) bool {
 	return n == 5 && string(buf) == "%PDF-"
 }
 
+// indexArticleImages maps each downloaded image's document id to its path, so
+// images can be found by id regardless of the date prefix in the filename
+// ("<prefix>--<id>.jpg").
+func indexArticleImages(articleDir string) map[string]string {
+	index := map[string]string{}
+	entries, err := os.ReadDir(articleDir)
+	if err != nil {
+		return index
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".jpg") {
+			continue
+		}
+		if i := strings.LastIndex(name, "--"); i >= 0 {
+			id := strings.TrimSuffix(name[i+2:], ".jpg")
+			index[id] = filepath.Join(articleDir, name)
+		}
+	}
+	return index
+}
+
 // renderParagraph renders one block node: its text runs (honouring alignment)
 // followed by any images it contains.
-func renderParagraph(pdf *fpdf.Fpdf, tr func(string) string, node DocNode, articleDir, prefix string) {
+func renderParagraph(pdf *fpdf.Fpdf, tr func(string) string, node DocNode, images map[string]string) {
 	align := "L"
 	if node.Attrs != nil && node.Attrs.TextAlign != nil {
 		switch *node.Attrs.TextAlign {
@@ -174,7 +194,7 @@ func renderParagraph(pdf *fpdf.Fpdf, tr func(string) string, node DocNode, artic
 	}
 
 	var sb strings.Builder
-	var images []string
+	var imgSrcs []string
 	for _, inline := range node.Content {
 		switch inline.Type {
 		case "text":
@@ -183,7 +203,7 @@ func renderParagraph(pdf *fpdf.Fpdf, tr func(string) string, node DocNode, artic
 			sb.WriteString("\n")
 		case "custom-image":
 			if inline.Attrs != nil && inline.Attrs.Src != "" {
-				images = append(images, inline.Attrs.Src)
+				imgSrcs = append(imgSrcs, inline.Attrs.Src)
 			}
 		}
 	}
@@ -195,8 +215,10 @@ func renderParagraph(pdf *fpdf.Fpdf, tr func(string) string, node DocNode, artic
 		pdf.Ln(2)
 	}
 
-	for _, src := range images {
-		placeImage(pdf, filepath.Join(articleDir, fmt.Sprintf("%s--%s.jpg", prefix, path.Base(src))))
+	for _, src := range imgSrcs {
+		if p := images[path.Base(src)]; p != "" {
+			placeImage(pdf, p)
+		}
 	}
 }
 
@@ -229,7 +251,7 @@ func placeImage(pdf *fpdf.Fpdf, imgPath string) {
 // file, or "" if it is missing or not a recognised image. Detection is by
 // content, since downloaded files are always named ".jpg".
 func imageType(imgPath string) string {
-	f, err := os.Open(imgPath) // #nosec G304 -- imgPath is program-built under outputDir
+	f, err := os.Open(imgPath) // #nosec G304 G703 -- imgPath is program-built under outputDir
 	if err != nil {
 		return ""
 	}

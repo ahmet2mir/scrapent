@@ -175,7 +175,7 @@ func (c *Client) article(blogID, articleID, articleDir, contentPath string, opts
 
 // loadArticle reads a post from an existing content.json.
 func (c *Client) loadArticle(contentPath, articleID string) (*Post, error) {
-	// #nosec G304 -- contentPath is built from outputDir and program-sanitized
+	// #nosec G304 G703 -- contentPath is built from outputDir and program-sanitized
 	// blog/article names, not from external input.
 	cached, err := os.ReadFile(contentPath)
 	if err != nil {

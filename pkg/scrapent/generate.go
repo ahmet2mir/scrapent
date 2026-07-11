@@ -11,8 +11,9 @@ import (
 // GeneratePDFs (re)builds each article PDF and the merged blog PDF for blogs
 // found under outputDir, reading only local content.json files and images (no
 // network, no authentication). When names is non-empty, only those blog
-// directory names are processed; otherwise every blog directory is.
-func GeneratePDFs(outputDir string, names []string, force bool, logger *log.Logger) error {
+// directory names are processed; otherwise every blog directory is. When legacy
+// is set, content.json files in the old format are converted on the fly.
+func GeneratePDFs(outputDir string, names []string, force, legacy bool, logger *log.Logger) error {
 	entries, err := os.ReadDir(outputDir)
 	if err != nil {
 		return err
@@ -27,7 +28,7 @@ func GeneratePDFs(outputDir string, names []string, force bool, logger *log.Logg
 		if !e.IsDir() || (len(want) > 0 && !want[e.Name()]) {
 			continue
 		}
-		generateBlogPDFs(filepath.Join(outputDir, e.Name()), force, logger)
+		generateBlogPDFs(filepath.Join(outputDir, e.Name()), force, legacy, logger)
 	}
 
 	return nil
@@ -35,7 +36,7 @@ func GeneratePDFs(outputDir string, names []string, force bool, logger *log.Logg
 
 // generateBlogPDFs builds the article PDFs and the merged PDF for a single blog
 // directory from its local content.json files.
-func generateBlogPDFs(blogDir string, force bool, logger *log.Logger) {
+func generateBlogPDFs(blogDir string, force, legacy bool, logger *log.Logger) {
 	entries, err := os.ReadDir(blogDir)
 	if err != nil {
 		logger.Error("Reading blog directory", "dir", blogDir, "err", err)
@@ -53,22 +54,36 @@ func generateBlogPDFs(blogDir string, force bool, logger *log.Logger) {
 		articleDir := filepath.Join(blogDir, e.Name())
 		contentPath := filepath.Join(articleDir, "content.json")
 
-		// #nosec G304 -- contentPath is built from the output directory listing.
+		// #nosec G304 G703 -- contentPath is built from the output directory listing.
 		data, err := os.ReadFile(contentPath)
 		if err != nil {
 			continue // not an article directory
 		}
 
-		var post Post
-		if err := json.Unmarshal(data, &post); err != nil {
+		post, err := readContent(data, legacy)
+		if err != nil {
 			logger.Error("Reading content", "dir", articleDir, "err", err)
 			continue
 		}
 
-		if pdfPath, ok := buildArticlePDF(articleDir, &post, force, logger); ok {
+		if pdfPath, ok := buildArticlePDF(articleDir, post, force, logger); ok {
 			articlePDFs = append(articlePDFs, datedPDF{date: post.Created.Date, path: pdfPath})
 		}
 	}
 
 	mergeBlogPDFs(blogDir, articlePDFs, logger)
+}
+
+// readContent parses a content.json as the current format, falling back to
+// converting a legacy file when legacy is set and the current parse fails.
+func readContent(data []byte, legacy bool) (*Post, error) {
+	var post Post
+	err := json.Unmarshal(data, &post)
+	if err == nil {
+		return &post, nil
+	}
+	if legacy {
+		return MigrateLegacy(data)
+	}
+	return nil, err
 }

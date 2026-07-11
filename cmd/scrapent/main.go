@@ -93,6 +93,7 @@ func main() {
 								Usage: "only regenerate these blog directory names (default: all under --output)",
 							},
 							&cli.BoolFlag{Name: "force", Usage: "regenerate article PDFs even if present"},
+							&cli.BoolFlag{Name: "legacy", Usage: "convert legacy content.json files on the fly"},
 						},
 						Action: blogGenerate(logger),
 					},
@@ -129,7 +130,7 @@ func newClient(cmd *cli.Command, logger *log.Logger) (*scrapent.Client, error) {
 
 func blogGenerate(logger *log.Logger) cli.ActionFunc {
 	return func(_ context.Context, cmd *cli.Command) error {
-		return scrapent.GeneratePDFs(cmd.String("output"), cmd.StringSlice("name"), cmd.Bool("force"), logger)
+		return scrapent.GeneratePDFs(cmd.String("output"), cmd.StringSlice("name"), cmd.Bool("force"), cmd.Bool("legacy"), logger)
 	}
 }
 
@@ -139,7 +140,7 @@ func migrate(_ context.Context, cmd *cli.Command) error {
 	}
 	path := cmd.Args().First()
 
-	data, err := os.ReadFile(path) // #nosec G304 -- path is the user-provided file to migrate
+	data, err := os.ReadFile(path) // #nosec G304 G703 -- path is the user-provided file to migrate
 	if err != nil {
 		return err
 	}
@@ -155,6 +156,7 @@ func migrate(_ context.Context, cmd *cli.Command) error {
 	}
 
 	if cmd.Bool("in-place") {
+		// #nosec G304 G703 -- path is the user-provided file to migrate in place (like sed -i)
 		return os.WriteFile(path, append(out, '\n'), 0600)
 	}
 
