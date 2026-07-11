@@ -19,14 +19,13 @@ full-resolution images referenced in the post.
 
 ## Installation
 
-Build from source (Go 1.24+):
+Please use pre-built binaries from [Releases](https://github.com/ahmet2mir/scrapent/releases)
+
+Or for Linux users, consider [bin](https://github.com/marcosnils/bin/)
 
 ```bash
-go build -o bin/scrapent ./cmd/scrapent
+bin install github.com/ahmet2mir/scrapent
 ```
-
-Or download a prebuilt binary for Linux, macOS or Windows from the releases
-page.
 
 ## Configuration
 
