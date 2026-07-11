@@ -80,6 +80,8 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     needs: build
     # needs: quality
     steps:
