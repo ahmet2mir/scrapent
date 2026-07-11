@@ -1,0 +1,127 @@
+version: 2
+
+project_name: scrapent
+
+# Keep release artifacts in build/ so they do not collide with the scraper's
+# default output directory (dist/).
+dist: build
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: scrapent
+    binary: scrapent
+    main: ./cmd/scrapent
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - "386"
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm64
+      - goos: windows
+        goarch: arm
+      - goos: darwin
+        goarch: "386"
+    ldflags:
+      - -s -w
+      - -X github.com/ahmet2mir/scrapent/internal/version.Version={{.Version}}
+      - -X github.com/ahmet2mir/scrapent/internal/version.GitCommit={{.Commit}}
+      - -X github.com/ahmet2mir/scrapent/internal/version.BuildTime={{.Date}}
+      - -X github.com/ahmet2mir/scrapent/internal/version.PlatformName={{.Os}}_{{.Arch}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: scrapent
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README.md
+      - README.fr.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: 'Performance improvements'
+      regexp: "^.*perf[(\\w)]*:+.*$"
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: ahmet2mir
+    name: scrapent
+  draft: false
+  prerelease: auto
+  mode: append
+  header: |
+    ## scrapent {{ .Tag }} ({{ .Date }})
+
+    Archive blog posts and images from an ENT (entcore) school space.
+
+    ### Installation
+
+    Download the binary for your platform below.
+  footer: |
+    ## What's Changed
+
+    **Full Changelog**: https://github.com/ahmet2mir/scrapent/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ---
+
+    ### Verification
+
+    All binaries are checksummed. Verify with:
+
+    ```bash
+    sha256sum -c checksums.txt
+    ```
